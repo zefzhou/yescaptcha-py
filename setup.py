@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="yescaptcha-py",
-    version="0.0.1",
+    version="0.0.2",
     author="zefzhou44",
     author_email="zefzhou44@gmail.com",
     description="yescaptcha python package",
