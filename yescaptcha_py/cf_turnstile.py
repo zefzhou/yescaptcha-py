@@ -68,7 +68,7 @@ class CfTurnstile:
             return task_response
 
         for _ in range(self.max_wait_tries):
-            asyncio.sleep(self.wait_seconds_per_try)
+            await asyncio.sleep(self.wait_seconds_per_try)
             result = await self.get_task(task_response.get('taskId'))
             if result.get('status') == 'processing':
                 continue
