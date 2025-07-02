@@ -1,6 +1,8 @@
 import requests
 import time
 from loguru import logger
+import asyncio
+import aiohttp
 
 
 class CfTurnstile:
@@ -28,7 +30,7 @@ class CfTurnstile:
         self.wait_seconds_per_try = wait_seconds_per_try
         self.max_wait_tries = max_wait_tries
 
-    def create_task(self):
+    async def create_task(self):
         data = {
             "clientKey": self.client_key,
             "task": {
@@ -40,30 +42,34 @@ class CfTurnstile:
         }
         api_url = f"{self.domain}/createTask"
         try:
-            response = requests.post(api_url, json=data).json()
-            return response
+            async with aiohttp.client.ClientSession() as session:
+                async with session.post(api_url, json=data) as response:
+                    result = await response.json()
+                    return result
         except Exception as e:
             logger.error(f'create cf_turnstile task failed : {e}')
             return None
 
-    def get_task(self, task_id):
+    async def get_task(self, task_id):
         api_url = f"{self.domain}/getTaskResult"
         data = {"clientKey": self.client_key, "taskId": task_id}
         try:
-            response = requests.post(api_url, json=data).json()
-            return response
+            async with aiohttp.client.ClientSession() as session:
+                async with session.post(api_url, json=data) as response:
+                    result = await response.json()
+                    return result
         except Exception as e:
             logger.error(f'get cf_turnstile task failed : {e}')
             return None
 
-    def resolve(self):
-        task_response = self.create_task()
+    async def resolve(self):
+        task_response = await self.create_task()
         if not task_response or not task_response.get('taskId'):
             return task_response
 
         for _ in range(self.max_wait_tries):
-            time.sleep(self.wait_seconds_per_try)
-            result = self.get_task(task_response.get('taskId'))
+            asyncio.sleep(self.wait_seconds_per_try)
+            result = await self.get_task(task_response.get('taskId'))
             if result.get('status') == 'processing':
                 continue
             elif result.get('status') == 'ready':
@@ -73,14 +79,18 @@ class CfTurnstile:
         return {"status": "timeout"}
 
 
-if __name__ == '__main__':
+async def test_cf_turnstile():
     yes_captcha_key = ''
     website_url = ''
     website_key = ''
 
-    result = CfTurnstile(
+    result = await CfTurnstile(
         client_key=yes_captcha_key,
         site_url=website_url,
         site_key=website_key,
     ).resolve()
     print(result)
+
+
+if __name__ == '__main__':
+    asyncio.run(test_cf_turnstile())

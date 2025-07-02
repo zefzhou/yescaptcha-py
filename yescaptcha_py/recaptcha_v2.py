@@ -1,6 +1,7 @@
 from loguru import logger
 import requests
-from time import sleep
+import asyncio
+import aiohttp
 
 
 class RecaptchaV2:
@@ -28,13 +29,13 @@ class RecaptchaV2:
         self.task_type = task_type
         self.task_id = task_id
 
-    def solve(self):
-        self.create_task()
+    async def solve(self):
+        await self.create_task()
         if self.task_id is None:
             return None
-        return self.get_code()
+        return await self.get_code()
 
-    def create_task(self):
+    async def create_task(self):
         url = f'{self.domain}/createTask'
         data = {
             'clientKey': self.client_key,
@@ -46,38 +47,42 @@ class RecaptchaV2:
         }
 
         try:
-            result = requests.post(url, json=data).json()
-            task_id = result.get('taskId')
-            if task_id is not None:
-                logger.info(f'reCAPTCHA 解码任务创建成功，ID = {task_id}')
-                self.task_id = task_id
-                return
-            logger.error(f'reCAPTCHA 解码任务创建失败')
+            async with aiohttp.client.ClientSession() as session:
+                async with session.post(url, json=data) as response:
+                    result = await response.json()
+                    task_id = result.get('taskId')
+                    if task_id is not None:
+                        logger.info(f'reCAPTCHA 解码任务创建成功，ID = {task_id}')
+                        self.task_id = task_id
+                        return
+                    logger.error(f'reCAPTCHA 解码任务创建失败')
         except Exception as e:
             logger.error(f'reCAPTCHA 解码任务创建失败, {e}')
 
-    def get_code(self):
+    async def get_code(self):
         wait_tries = 0
         while wait_tries < self.max_wait_tries:
             try:
                 url = f'{self.domain}/getTaskResult'
                 data = {'clientKey': self.client_key, 'taskId': self.task_id}
-                result = requests.post(url, json=data).json()
-                solution = result.get('solution', {})
-                if solution:
-                    response = solution.get('gRecaptchaResponse')
-                    if response:
-                        # logger.info(f'reCAPTCHA 解码成功, code = {response}')
-                        logger.info(f'reCAPTCHA 解码成功')
-                        return response
+                async with aiohttp.client.ClientSession() as session:
+                    async with session.post(url, json=data) as response:
+                        result = await response.json()
+                        solution = result.get('solution', {})
+                        if solution:
+                            response = solution.get('gRecaptchaResponse')
+                            if response:
+                                # logger.info(f'reCAPTCHA 解码成功, code = {response}')
+                                logger.info(f'reCAPTCHA 解码成功')
+                                return response
             except Exception as e:
                 logger.error(e)
             wait_tries += 1
-            sleep(self.wait_seconds_per_try)
+            await asyncio.sleep(self.wait_seconds_per_try)
         return None
 
 
-if __name__ == '__main__':
+async def test_recaptcha_v2():
     client_key = ''
     site_key = ''
     site_url = ''
@@ -86,5 +91,9 @@ if __name__ == '__main__':
         site_url=site_url,
         site_key=site_key,
     )
-    code = re.solve()
+    code = await re.solve()
     print(f'code = {code}')
+
+
+if __name__ == '__main__':
+    asyncio.run(test_recaptcha_v2())

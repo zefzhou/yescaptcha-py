@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="yescaptcha-py",
-    version="0.0.2",
+    version="0.0.3",
     author="zefzhou44",
     author_email="zefzhou44@gmail.com",
     description="yescaptcha python package",
@@ -19,5 +19,6 @@ setup(
     install_requires=[
         "loguru>=0.7.2",
         "Requests>=2.32.3",
+        "aiohttp>=3.12.13",
     ],
 )
